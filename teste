@@ -1,0 +1,41 @@
+# Configurar o MTCNN para detecção de rostos
+mtcnn = MTCNN(image_size=160, margin=20, min_face_size=20)
+
+# Carregar o modelo InceptionResnetV1 pré-treinado do facenet
+model = InceptionResnetV1(pretrained='vggface2').eval()
+def get_face_embedding(image):
+    # Detectar e alinhar a face
+    face = mtcnn(image)
+    if face is not None:
+        # Obter o embedding da face
+        face_embedding = model(face.unsqueeze(0))
+        return face_embedding
+    return None
+
+def recognize_face(face_embedding, known_embeddings, tolerance=0.6):
+    distances = [np.linalg.norm(face_embedding - emb) for emb in known_embeddings]
+    if min(distances) < tolerance:
+        return np.argmin(distances)
+    else:
+        return -1
+# Carregar imagem de referência
+reference_image = cv2.imread('reference_image.jpg')
+reference_image_rgb = cv2.cvtColor(reference_image, cv2.COLOR_BGR2RGB)
+
+# Obter embedding da face de referência
+known_embeddings = []
+reference_embedding = get_face_embedding(reference_image_rgb)
+if reference_embedding is not None:
+    known_embeddings.append(reference_embedding.detach().numpy())# Carregar nova imagem
+new_image = cv2.imread('new_image.jpg')
+new_image_rgb = cv2.cvtColor(new_image, cv2.COLOR_BGR2RGB)
+
+# Obter embedding da nova face
+new_embedding = get_face_embedding(new_image_rgb)
+
+if new_embedding is not None:
+    index = recognize_face(new_embedding.detach().numpy(), known_embeddings)
+    if index >= 0:
+        print("Face reconhecida!")
+    else:
+        print("Face não reconhecida.")
